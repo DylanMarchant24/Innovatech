@@ -1,0 +1,14 @@
+# Archivos PDF y temporales
+*.pdf
+pdf_text.txt
+
+# Carpetas y archivos de Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+.terraform.tfstate.lock.info
+
+# Archivos de entorno
+.env
+.DS_Store
