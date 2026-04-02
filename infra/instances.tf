@@ -18,7 +18,7 @@ resource "aws_instance" "front_server" {
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.public_frontend.id
   vpc_security_group_ids = [aws_security_group.sg_front.id]
-  iam_instance_profile   = aws_iam_instance_profile.ssm_profile.name
+  iam_instance_profile   = "LabInstanceProfile"
 
   user_data = <<-EOF
               #!/bin/bash
@@ -40,7 +40,7 @@ resource "aws_instance" "back_server" {
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.private_backend_data.id
   vpc_security_group_ids = [aws_security_group.sg_back.id]
-  iam_instance_profile   = aws_iam_instance_profile.ssm_profile.name
+  iam_instance_profile   = "LabInstanceProfile"
 
   user_data = <<-EOF
               #!/bin/bash
@@ -62,7 +62,7 @@ resource "aws_instance" "data_server" {
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.private_backend_data.id
   vpc_security_group_ids = [aws_security_group.sg_data.id]
-  iam_instance_profile   = aws_iam_instance_profile.ssm_profile.name
+  iam_instance_profile   = "LabInstanceProfile"
 
   user_data = <<-EOF
               #!/bin/bash
