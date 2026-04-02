@@ -42,6 +42,8 @@ resource "aws_instance" "back_server" {
   vpc_security_group_ids = [aws_security_group.sg_back.id]
   iam_instance_profile   = "LabInstanceProfile"
 
+  depends_on = [aws_instance.data_server]
+
   user_data = <<-EOF
               #!/bin/bash
               apt-get update -y
@@ -50,6 +52,13 @@ resource "aws_instance" "back_server" {
               systemctl start docker
               systemctl enable docker
               usermod -aG docker ubuntu
+
+              su - ubuntu -c "git clone -b feature/backend https://github.com/DylanMarchant24/Innovatech.git /home/ubuntu/Innovatech"
+              sed -i 's/data-server-ip/${aws_instance.data_server.private_ip}/g' /home/ubuntu/Innovatech/backend/src/main/resources/application.properties
+              
+              cd /home/ubuntu/Innovatech/backend
+              docker build -t mi-backend .
+              docker run -d --restart always -p 8080:8080 mi-backend
               EOF
 
   tags = {
