@@ -1,17 +1,6 @@
-# Etapa 1: Compilacion (Build stage)
-FROM maven:3.9.6-amazoncorretto-21 AS build
-WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-# Compilamos y empaquetamos el archivo JAR (saltando los tests para acelerar el deplo)
-RUN mvn clean package -DskipTests
-
-# Etapa 2: Imagen Final super ligera
+# Imagen de ejecucion liviana (sin compilar - Maven compila en host EC2)
 FROM amazoncorretto:21-alpine
 WORKDIR /app
-# Copiamos el archivo JAR recien construido de la etapa anterior
-COPY --from=build /app/target/app.jar app.jar
-# Exponemos el puerto por defecto de Spring Boot
+COPY app.jar app.jar
 EXPOSE 8080
-# Comando de arranque del contenedor
 ENTRYPOINT ["java", "-jar", "app.jar"]
