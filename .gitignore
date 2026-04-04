@@ -12,3 +12,14 @@ pdf_text.txt
 # Archivos de entorno
 .env
 .DS_Store
+
+# Guias internas (solo uso local)
+GUIA_FRONTEND.md
+GUIA_FRONTEND.txt
+
+# Carpetas temporales y de IDE
+.vscode/
+backend/maven/
+backend/maven_temp/
+backend/target/
+frontend/node_modules/
