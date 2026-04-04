@@ -22,13 +22,55 @@ resource "aws_instance" "front_server" {
 
   user_data = <<-EOF
               #!/bin/bash
+              set -e
+
+              # 1. Actualizar sistema e instalar dependencias base
               apt-get update -y
-              apt-get upgrade -y
-              apt-get install -y docker.io git nginx
-              systemctl start docker nginx
-              systemctl enable docker nginx
-              usermod -aG docker ubuntu
+              apt-get install -y git nginx curl
+
+              # 2. Instalar Node.js 20 LTS
+              curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+              apt-get install -y nodejs
+
+              # 3. Clonar repositorio (rama develop que tiene todo integrado)
+              git clone -b develop https://github.com/DylanMarchant24/Innovatech.git /home/ubuntu/Innovatech
+
+              # 4. Construir el Frontend
+              cd /home/ubuntu/Innovatech/frontend
+              npm ci
+              npm run build
+
+              # 5. Copiar archivos del build a Nginx
+              cp -r /home/ubuntu/Innovatech/frontend/dist/* /var/www/html/
+
+              # 6. Configurar Nginx: servir el sitio React y hacer proxy de /api al Backend
+              cat > /etc/nginx/sites-available/default <<'NGINX'
+              server {
+                  listen 80 default_server;
+                  server_name _;
+                  root /var/www/html;
+                  index index.html;
+
+                  # Proxy de API hacia el Backend privado
+                  location /api/ {
+                      proxy_pass http://${aws_instance.back_server.private_ip}:8080/api/;
+                      proxy_set_header Host $host;
+                      proxy_set_header X-Real-IP $remote_addr;
+                  }
+
+                  # React Router: devolver index.html para cualquier ruta
+                  location / {
+                      try_files $uri $uri/ /index.html;
+                  }
+              }
+              NGINX
+
+              # 7. Iniciar y habilitar Nginx
+              systemctl restart nginx
+              systemctl enable nginx
               EOF
+
+  depends_on = [aws_instance.back_server]
 
   tags = {
     Name = "EC2-Frontend"
