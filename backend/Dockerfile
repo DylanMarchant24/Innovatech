@@ -10,7 +10,7 @@ RUN mvn clean package -DskipTests
 FROM amazoncorretto:21-alpine
 WORKDIR /app
 # Copiamos el archivo JAR recien construido de la etapa anterior
-COPY --from=build /app/target/backend-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build /app/target/app.jar app.jar
 # Exponemos el puerto por defecto de Spring Boot
 EXPOSE 8080
 # Comando de arranque del contenedor
