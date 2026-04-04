@@ -23,6 +23,12 @@ resource "aws_instance" "front_server" {
   user_data = <<-EOF
               #!/bin/bash
               set -e
+              # Crear 2GB de Swap para evitar errores de memoria (OOM) al compilar React
+              fallocate -l 2G /swapfile
+              chmod 600 /swapfile
+              mkswap /swapfile
+              swapon /swapfile
+              echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
               # 1. Actualizar sistema e instalar dependencias base
               apt-get update -y
@@ -83,20 +89,27 @@ resource "aws_instance" "back_server" {
   subnet_id              = aws_subnet.private_backend_data.id
   vpc_security_group_ids = [aws_security_group.sg_back.id]
   iam_instance_profile   = "LabInstanceProfile"
+  private_ip             = "10.0.2.50"
 
   depends_on = [aws_instance.data_server]
 
   user_data = <<-EOF
               #!/bin/bash
+              # Crear 2GB de Swap para evitar errores de memoria (OOM) al compilar Java
+              fallocate -l 2G /swapfile
+              chmod 600 /swapfile
+              mkswap /swapfile
+              swapon /swapfile
+              echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
               apt-get update -y
-              apt-get upgrade -y
               apt-get install -y docker.io git
               systemctl start docker
               systemctl enable docker
               usermod -aG docker ubuntu
 
-              su - ubuntu -c "git clone -b feature/backend https://github.com/DylanMarchant24/Innovatech.git /home/ubuntu/Innovatech"
-              sed -i 's/data-server-ip/${aws_instance.data_server.private_ip}/g' /home/ubuntu/Innovatech/backend/src/main/resources/application.properties
+              su - ubuntu -c "git clone -b develop https://github.com/DylanMarchant24/Innovatech.git /home/ubuntu/Innovatech"
+              sed -i "s/data-server-ip/${aws_instance.data_server.private_ip}/g" /home/ubuntu/Innovatech/backend/src/main/resources/application.properties
               
               cd /home/ubuntu/Innovatech/backend
               docker build -t mi-backend .
@@ -114,6 +127,7 @@ resource "aws_instance" "data_server" {
   subnet_id              = aws_subnet.private_backend_data.id
   vpc_security_group_ids = [aws_security_group.sg_data.id]
   iam_instance_profile   = "LabInstanceProfile"
+  private_ip             = "10.0.2.66"
 
   user_data = <<-EOF
               #!/bin/bash

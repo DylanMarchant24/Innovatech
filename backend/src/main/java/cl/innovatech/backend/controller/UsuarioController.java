@@ -19,6 +19,12 @@ public class UsuarioController {
         this.usuarioRepository = usuarioRepository;
     }
 
+    // Health Check para Nginx y Frontend
+    @GetMapping("/status")
+    public String getStatus() {
+        return "Backend Conectado con Éxito";
+    }
+
     // LISTAR todos los usuarios
     @GetMapping
     public List<Usuario> getAllUsuarios() {
