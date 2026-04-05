@@ -103,30 +103,56 @@ resource "aws_instance" "back_server" {
 
   user_data = <<-EOF
               #!/bin/bash
+              set -e
+              exec > >(tee -a /var/log/user-data.log)
+              exec 2>&1
+              
+              echo "=== Iniciando bootstrap del Backend ===" 
+              echo "Timestamp: $(date)"
+              
               # Crear 3GB de Swap para evitar errores de memoria (OOM) al compilar Java
+              echo "Creando swap..."
               fallocate -l 3G /swapfile
               chmod 600 /swapfile
               mkswap /swapfile
               swapon /swapfile
               echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
-              apt-get update -y
-              apt-get install -y docker.io git maven openjdk-21-jdk
+              echo "Actualizando sistema..."
+              apt-get update -y >> /var/log/apt-update.log 2>&1 || echo "apt-get update falló"
+              
+              echo "Instalando dependencias..."
+              apt-get install -y docker.io git maven openjdk-21-jdk >> /var/log/apt-install.log 2>&1
+              
+              echo "Iniciando Docker..."
               systemctl start docker
               systemctl enable docker
+              usermod -aG docker ubuntu
 
+              echo "Clonando repositorio..."
               git clone -b develop https://github.com/DylanMarchant24/Innovatech.git /home/ubuntu/Innovatech
+              
+              echo "Reemplazando IP de Base de Datos..."
               sed -i "s/data-server-ip/${aws_instance.data_server.private_ip}/g" /home/ubuntu/Innovatech/backend/src/main/resources/application.properties
+              cat /home/ubuntu/Innovatech/backend/src/main/resources/application.properties
 
-              # Esperar a que la Base de Datos esté lista
+              echo "Esperando que la Base de Datos esté lista..."
               sleep 30
+              
+              echo "Compilando Backend..."
               cd /home/ubuntu/Innovatech/backend
               export MAVEN_OPTS="-Xmx512m"
-              mvn clean package -DskipTests
-
+              mvn clean package -DskipTests >> /var/log/maven-build.log 2>&1
+              
+              echo "Creando Docker image..."
               cp target/app.jar /home/ubuntu/Innovatech/backend/app.jar
-              docker build -t mi-backend .
-              docker run -d --restart always -p 8080:8080 mi-backend
+              docker build -t mi-backend . >> /var/log/docker-build.log 2>&1
+              
+              echo "Ejecutando contenedor Backend..."
+              docker run -d --restart always -p 8080:8080 mi-backend >> /var/log/docker-run.log 2>&1
+              
+              echo "=== Bootstrap completado ==="
+              docker ps
               EOF
 
   tags = {
