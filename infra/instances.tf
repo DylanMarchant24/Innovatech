@@ -118,11 +118,17 @@ resource "aws_instance" "back_server" {
               swapon /swapfile
               echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
+              echo "Esperando red..."
+              until curl -sSf --connect-timeout 5 http://us-east-1.ec2.archive.ubuntu.com/ubuntu/ >/dev/null; do
+                echo "  red no disponible, reintentando en 5s..."
+                sleep 5
+              done
+
               echo "Actualizando sistema..."
-              apt-get update -y >> /var/log/apt-update.log 2>&1 || echo "apt-get update falló"
+              apt-get update -o Acquire::ForceIPv4=true >> /var/log/apt-update.log 2>&1
               
               echo "Instalando dependencias..."
-              apt-get install -y docker.io git maven openjdk-21-jdk >> /var/log/apt-install.log 2>&1
+              apt-get install -y docker.io git maven openjdk-17-jdk >> /var/log/apt-install.log 2>&1
               
               echo "Iniciando Docker..."
               systemctl start docker
