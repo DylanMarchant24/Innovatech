@@ -127,9 +127,15 @@ resource "aws_instance" "back_server" {
               echo "Actualizando sistema..."
               apt-get update -o Acquire::ForceIPv4=true >> /var/log/apt-update.log 2>&1
               
-              echo "Instalando dependencias..."
-              apt-get install -y docker.io git maven openjdk-17-jdk >> /var/log/apt-install.log 2>&1
-              
+              echo "Instalando dependencias base..."
+              apt-get install -y docker.io git maven wget gnupg lsb-release >> /var/log/apt-install.log 2>&1
+
+              echo "Configurando repositorio de Amazon Corretto..."
+              wget -qO - https://apt.corretto.aws/corretto.key | apt-key add - >> /var/log/apt-install.log 2>&1
+              echo "deb https://apt.corretto.aws stable main" > /etc/apt/sources.list.d/corretto.list
+              apt-get update -o Acquire::ForceIPv4=true >> /var/log/apt-update.log 2>&1
+              apt-get install -y java-21-amazon-corretto-jdk >> /var/log/apt-install.log 2>&1
+
               echo "Iniciando Docker..."
               systemctl start docker
               systemctl enable docker
