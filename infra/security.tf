@@ -1,13 +1,11 @@
-
-# -------------------------------------------------------------
-# Security Groups
-# -------------------------------------------------------------
+# 1. Security Group para Frontend (Capa Pública)
+# IE9: Única capa expuesta a Internet [cite: 109]
 resource "aws_security_group" "sg_front" {
   name        = "SG_Front"
-  description = "Permitir HTTP (80) y HTTPS (443) al Frontend. SSH administrado por SSM"
+  description = "Acceso HTTP desde Internet. Admin via Session Manager"
   vpc_id      = aws_vpc.main.id
 
-  # HTTP desde Internet
+  # Entrada: HTTP para los usuarios finales
   ingress {
     description = "HTTP desde Internet"
     from_port   = 80
@@ -16,15 +14,7 @@ resource "aws_security_group" "sg_front" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # HTTPS desde Internet
-  ingress {
-    description = "HTTPS desde Internet"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
+  # Salida: Permitir descargar paquetes y conectar con el Backend
   egress {
     from_port   = 0
     to_port     = 0
@@ -32,24 +22,26 @@ resource "aws_security_group" "sg_front" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    Name = "Seguridad-Frontend"
-  }
+  tags = { Name = "Seguridad-Frontend" }
 }
 
+# 2. Security Group para Backend (Capa Privada)
+# IE6: Flujo Front -> Back [cite: 148]
 resource "aws_security_group" "sg_back" {
   name        = "SG_Back"
-  description = "Permitir trafico solo desde el Frontend"
+  description = "Acceso restringido solo desde el Frontend"
   vpc_id      = aws_vpc.main.id
 
+  # Entrada: Solo permitimos el puerto 8080 si viene del SG del Frontend
   ingress {
     description     = "Trafico desde SG_Front"
-    from_port       = 8080 # Puerto de ejemplo del microservicio
+    from_port       = 8080
     to_port         = 8080
     protocol        = "tcp"
     security_groups = [aws_security_group.sg_front.id]
   }
 
+  # Salida: Permitir descargar Docker/JDK via NAT y conectar con Data
   egress {
     from_port   = 0
     to_port     = 0
@@ -57,24 +49,26 @@ resource "aws_security_group" "sg_back" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    Name = "Seguridad-Backend"
-  }
+  tags = { Name = "Seguridad-Backend" }
 }
 
+# 3. Security Group para Base de Datos (Capa Privada)
+# IE6: Flujo Back -> Data [cite: 148]
 resource "aws_security_group" "sg_data" {
   name        = "SG_Data"
-  description = "Permitir trafico de BD (MySQL) solo desde el Backend"
+  description = "Acceso MySQL solo desde el Backend"
   vpc_id      = aws_vpc.main.id
 
+  # Entrada: Solo permitimos el puerto 3306 si viene del SG del Backend
   ingress {
     description     = "MySQL desde SG_Back"
-    from_port       = 3306 # MySQL
+    from_port       = 3306
     to_port         = 3306
     protocol        = "tcp"
     security_groups = [aws_security_group.sg_back.id]
   }
 
+  # Salida: Permitir descargar imagen de MySQL via NAT
   egress {
     from_port   = 0
     to_port     = 0
@@ -82,7 +76,5 @@ resource "aws_security_group" "sg_data" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    Name = "Seguridad-BaseDatos"
-  }
+  tags = { Name = "Seguridad-BaseDatos" }
 }
