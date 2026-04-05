@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
-const API_URL = '/api/usuarios'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+const API_URL = `${API_BASE}/api/usuarios`
 
 export function useUsuarios() {
   const [usuarios, setUsuarios] = useState([])

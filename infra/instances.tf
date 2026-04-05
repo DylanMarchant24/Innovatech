@@ -23,8 +23,8 @@ resource "aws_instance" "front_server" {
   user_data = <<-EOF
               #!/bin/bash
               set -e
-              # Crear 2GB de Swap para evitar errores de memoria (OOM) al compilar React
-              fallocate -l 2G /swapfile
+              # Crear 3GB de Swap para evitar errores de memoria (OOM) al compilar React
+              fallocate -l 3G /swapfile
               chmod 600 /swapfile
               mkswap /swapfile
               swapon /swapfile
@@ -43,13 +43,17 @@ resource "aws_instance" "front_server" {
 
               # 4. Construir el Frontend
               cd /home/ubuntu/Innovatech/frontend
-              npm ci
-              npm run build
+              echo "Instalando dependencias..." >> /var/log/user-data.log
+              npm ci >> /var/log/user-data.log 2>&1
+              echo "Construyendo frontend..." >> /var/log/user-data.log
+              npm run build >> /var/log/user-data.log 2>&1
 
               # 5. Copiar archivos del build a Nginx
-              cp -r /home/ubuntu/Innovatech/frontend/dist/* /var/www/html/
+              echo "Copiando archivos a Nginx..." >> /var/log/user-data.log
+              cp -r /home/ubuntu/Innovatech/frontend/dist/* /var/www/html/ >> /var/log/user-data.log 2>&1
 
               # 6. Configurar Nginx: servir el sitio React y hacer proxy de /api al Backend
+              echo "Configurando Nginx..." >> /var/log/user-data.log
               cat > /etc/nginx/sites-available/default <<'NGINX'
               server {
                   listen 80 default_server;
@@ -59,7 +63,7 @@ resource "aws_instance" "front_server" {
 
                   # Proxy de API hacia el Backend privado
                   location /api/ {
-                      proxy_pass http://${aws_instance.back_server.private_ip}:8080/api/;
+                      proxy_pass http://BACKEND_IP:8080/api/;
                       proxy_set_header Host $host;
                       proxy_set_header X-Real-IP $remote_addr;
                   }
@@ -70,10 +74,14 @@ resource "aws_instance" "front_server" {
                   }
               }
               NGINX
+              
+              # Reemplazar placeholder con la IP real del backend
+              sed -i "s|BACKEND_IP|${aws_instance.back_server.private_ip}|g" /etc/nginx/sites-available/default
 
               # 7. Iniciar y habilitar Nginx
-              systemctl restart nginx
-              systemctl enable nginx
+              echo "Reiniciando Nginx..." >> /var/log/user-data.log
+              systemctl restart nginx >> /var/log/user-data.log 2>&1
+              systemctl enable nginx >> /var/log/user-data.log 2>&1
               EOF
 
   depends_on = [aws_instance.back_server]
@@ -95,23 +103,28 @@ resource "aws_instance" "back_server" {
 
   user_data = <<-EOF
               #!/bin/bash
-              # Crear 2GB de Swap para evitar errores de memoria (OOM) al compilar Java
-              fallocate -l 2G /swapfile
+              # Crear 3GB de Swap para evitar errores de memoria (OOM) al compilar Java
+              fallocate -l 3G /swapfile
               chmod 600 /swapfile
               mkswap /swapfile
               swapon /swapfile
               echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
               apt-get update -y
-              apt-get install -y docker.io git
+              apt-get install -y docker.io git maven openjdk-21-jdk
               systemctl start docker
               systemctl enable docker
-              usermod -aG docker ubuntu
 
-              su - ubuntu -c "git clone -b develop https://github.com/DylanMarchant24/Innovatech.git /home/ubuntu/Innovatech"
+              git clone -b develop https://github.com/DylanMarchant24/Innovatech.git /home/ubuntu/Innovatech
               sed -i "s/data-server-ip/${aws_instance.data_server.private_ip}/g" /home/ubuntu/Innovatech/backend/src/main/resources/application.properties
-              
+
+              # Esperar a que la Base de Datos esté lista
+              sleep 30
               cd /home/ubuntu/Innovatech/backend
+              export MAVEN_OPTS="-Xmx512m"
+              mvn clean package -DskipTests
+
+              cp target/app.jar /home/ubuntu/Innovatech/backend/app.jar
               docker build -t mi-backend .
               docker run -d --restart always -p 8080:8080 mi-backend
               EOF
@@ -131,8 +144,14 @@ resource "aws_instance" "data_server" {
 
   user_data = <<-EOF
               #!/bin/bash
+              # Crear 2GB de Swap para MySQL
+              fallocate -l 2G /swapfile
+              chmod 600 /swapfile
+              mkswap /swapfile
+              swapon /swapfile
+              echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
               apt-get update -y
-              apt-get upgrade -y
               apt-get install -y docker.io git
               systemctl start docker
               systemctl enable docker
