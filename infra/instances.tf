@@ -54,7 +54,7 @@ resource "aws_instance" "front_server" {
               EOF
 
   depends_on = [aws_instance.back_server]
-  tags = { Name = "EC2-Frontend" }
+  tags       = { Name = "EC2-Frontend" }
 }
 
 # 2. CAPA BACKEND (Con la espera de 60s para MySQL)
@@ -96,7 +96,7 @@ resource "aws_instance" "back_server" {
               EOF
 
   depends_on = [aws_instance.data_server]
-  tags = { Name = "EC2-Backend" }
+  tags       = { Name = "EC2-Backend" }
 }
 
 # 3. CAPA DATA (MySQL 8.0)
