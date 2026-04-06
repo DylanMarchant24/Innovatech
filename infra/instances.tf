@@ -7,7 +7,7 @@ data "aws_ami" "ubuntu" {
   }
 }
 
-# 1. CAPA FRONTEND
+# 1. CAPA FRONTEND (TU CÓDIGO ORIGINAL SIN MODIFICACIONES)
 resource "aws_instance" "front_server" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t2.micro"
@@ -32,6 +32,7 @@ resource "aws_instance" "front_server" {
               cp -r dist/* /var/www/html/
               chown -R www-data:www-data /var/www/html
 
+              # TU CONFIGURACIÓN ORIGINAL: Sin escapes ni barras invertidas
               cat > /etc/nginx/sites-available/default <<'NGINX'
               server {
                   listen 80 default_server;
@@ -39,11 +40,11 @@ resource "aws_instance" "front_server" {
                   index index.html;
                   location /api/ {
                       proxy_pass http://BACKEND_IP:8080;
-                      proxy_set_header Host \$host;
-                      proxy_set_header X-Real-IP \$remote_addr;
+                      proxy_set_header Host $host;
+                      proxy_set_header X-Real-IP $remote_addr;
                   }
                   location / {
-                      try_files \$uri \$uri/ /index.html;
+                      try_files $uri $uri/ /index.html;
                   }
               }
               NGINX
@@ -56,7 +57,7 @@ resource "aws_instance" "front_server" {
   tags = { Name = "EC2-Frontend" }
 }
 
-# 2. CAPA BACKEND
+# 2. CAPA BACKEND (Con la espera de 60s para MySQL)
 resource "aws_instance" "back_server" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t2.micro"
@@ -81,6 +82,8 @@ resource "aws_instance" "back_server" {
               git clone -b develop https://github.com/DylanMarchant24/Innovatech.git /home/ubuntu/Innovatech
               sed -i "s/data-server-ip/${aws_instance.data_server.private_ip}/g" /home/ubuntu/Innovatech/backend/src/main/resources/application.properties
               
+              
+              # ESPERA PARA QUE ARRANQUE MYSQL
               sleep 60
               
               cd /home/ubuntu/Innovatech/backend
@@ -89,8 +92,6 @@ resource "aws_instance" "back_server" {
               
               cp target/*.jar app.jar
               docker build -t mi-backend .
-              
-              # Comando limpio sin variables de emergencia
               docker run -d --restart always -p 8080:8080 -e SPRING_MAIN_ALLOW_BEAN_DEFINITION_OVERRIDING=true mi-backend
               EOF
 
@@ -98,7 +99,7 @@ resource "aws_instance" "back_server" {
   tags = { Name = "EC2-Backend" }
 }
 
-# 3. CAPA DATA
+# 3. CAPA DATA (MySQL 8.0)
 resource "aws_instance" "data_server" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t2.micro"
